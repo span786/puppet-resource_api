@@ -77,6 +77,7 @@ module Puppet::ResourceApi
 
       def initialize(attributes)
         # $stderr.puts "A: #{attributes.inspect}"
+        puts "A: #{attributes.inspect}"
         if attributes.is_a? Puppet::Resource
           @title = attributes.title
           @catalog = attributes.catalog
@@ -85,6 +86,12 @@ module Puppet::ResourceApi
         else
           @ral_find_absent = true
           sensitives = []
+        end
+
+        # Handle metaparams
+        @metaparams = {}
+        [:noop, :tags, :require, :notify].each do |param|
+          @metaparams[param] = attributes.delete(param) if attributes.key?(param)
         end
 
         # undo puppet's unwrapping of Sensitive values to provide a uniform experience for providers
@@ -105,6 +112,11 @@ module Puppet::ResourceApi
         end
 
         super
+
+        # Apply tags
+        if @metaparams[:tags]
+          [@tags].flatten.each { |tag| self.class.tag(tag) }
+        end
       end
 
       def name
@@ -364,10 +376,15 @@ module Puppet::ResourceApi
           end
         end
 
+        if @metaparams[:noop]
+          Puppet.notice("noop is set, not making changes")
+          return
+        end
+
         if type_definition.feature?('supports_noop')
-          my_provider.set(context, { rsapi_title => { is: rsapi_current_state, should: target_state } }, noop: noop?)
+          my_provider.set(context, { rsapi_title => { is: rsapi_current_state, should: target_state } }, noop: @metaparams[:noop])
         else
-          my_provider.set(context, rsapi_title => { is: rsapi_current_state, should: target_state }) unless noop?
+          my_provider.set(context, rsapi_title => { is: rsapi_current_state, should: target_state }) #unless noop?
         end
         if context.failed?
           context.reset_failed

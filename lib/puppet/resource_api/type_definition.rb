@@ -8,6 +8,20 @@ module Puppet::ResourceApi
   # RSAPI Resource Type
   class TypeDefinition < BaseTypeDefinition
     def initialize(definition)
+      # define custom properties for each metaparam you want to support
+      definition[:attributes].merge!(
+        tags: {
+          type: 'Array[String]',
+          desc: 'Tags to apply to the resource.',
+          default: [],
+        }
+      )
+      newproperty(:tags, :array_matching => :all) do
+        desc 'Tags to apply to the resource.'
+        defaultto []
+      end
+
+      raise 'Break the code to get the error', __LINE__ # REMOVE: added to break the code
       super(definition, :attributes)
     end
 
